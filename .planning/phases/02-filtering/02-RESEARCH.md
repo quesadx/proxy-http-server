@@ -683,7 +683,7 @@ blocklist = Blocklist()
 | A4 | Wildcard patterns like `*.facebook.com` match subdomains correctly | Domain Matching | `fnmatch.fnmatch("evil.facebook.com", "*.facebook.com")` → True (verified). `fnmatch.fnmatch("facebook.com", "*.facebook.com")` → False — user must add both `facebook.com` and `*.facebook.com` for full coverage |
 | A5 | SNI is always present in modern TLS connections | SNI Extraction | Some legacy clients or non-HTTP TLS apps may not send SNI — fallback to CONNECT host check handles this |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should we treat missing SNI as "allow" or "block"?**
    - What we know: Some clients don't send SNI. The CONNECT host check already filters most blocked domains.
