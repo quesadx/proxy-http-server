@@ -8,7 +8,7 @@ Construir desde cero un servidor proxy HTTP funcional con filtrado de dominios (
 
 ## Phases
 
-- [ ] **Phase 0: Bootstrap del entorno** - Crear repositorio, flake.nix, .envrc, .gitignore, estructura de directorios
+- [x] **Phase 0: Bootstrap del entorno** - Crear repositorio, flake.nix, .envrc, .gitignore, estructura de directorios
 - [ ] **Phase 1: Núcleo del Proxy HTTP** - Proxy funcional que intercepta, reenvía y maneja concurrencia (35%)
 - [ ] **Phase 2: Módulo de Filtrado** - Bloqueo de dominios en HTTP y HTTPS vía SNI (25%)
 - [ ] **Phase 3: Logging y Panel de Monitoreo** - Registro auditable y panel web con métricas en tiempo real (20%)
@@ -29,7 +29,7 @@ Construir desde cero un servidor proxy HTTP funcional con filtrado de dominios (
 **Plans**: 1 plan
 
 Plans:
-- [ ] 00-01: Bootstrap nix flake dev environment
+- [x] 00-01: Bootstrap nix flake dev environment
 
 ### Phase 1: Núcleo del Proxy HTTP
 **Goal**: Proxy HTTP funcional — servidor TCP concurrente que parsea requests HTTP, reenvía, y soporta CONNECT para HTTPS
@@ -117,7 +117,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Bootstrap del entorno | 0/1 | In progress | - |
+| 0. Bootstrap del entorno | 1/1 | Complete | 2026-06-08 |
 | 1. Núcleo del Proxy HTTP | 0/3 | Not started | - |
 | 2. Módulo de Filtrado | 0/3 | Not started | - |
 | 3. Logging y Panel de Monitoreo | 0/3 | Not started | - |
