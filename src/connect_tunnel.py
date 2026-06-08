@@ -7,6 +7,7 @@ import time
 
 from src.config import CONNECT_TIMEOUT
 from src.logger import proxy_logger
+from src.stats import proxy_stats
 
 
 def tunnel_connect(
@@ -27,6 +28,7 @@ def tunnel_connect(
     """
     start_time = time.time()
     outcome = None  # tracked for logging in finally
+    proxy_stats.incr_active()
 
     # ------------------------------------------------------------------
     # 1. Parse target from request line
@@ -35,12 +37,14 @@ def tunnel_connect(
     if len(parts) < 2:
         wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
         wfile.flush()
+        proxy_stats.decr_active()
         return
 
     target = parts[1]
     if ":" not in target:
         wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
         wfile.flush()
+        proxy_stats.decr_active()
         return
 
     host, port_str = target.rsplit(":", 1)
@@ -49,6 +53,7 @@ def tunnel_connect(
     except ValueError:
         wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
         wfile.flush()
+        proxy_stats.decr_active()
         return
 
     # Phase 2: Check CONNECT host against blocklist before connecting
@@ -58,6 +63,10 @@ def tunnel_connect(
         response = BLOCK_PAGE.format(domain=host)
         wfile.write(response.encode("utf-8"))
         wfile.flush()
+        proxy_stats.decr_active()
+        proxy_stats.incr_request(blocked=True)
+        proxy_stats.record_domain(host)
+        proxy_stats.record_status(403)
         proxy_logger.log({
             "method": "CONNECT",
             "host": host,
@@ -81,6 +90,10 @@ def tunnel_connect(
         except (socket.gaierror, ConnectionRefusedError, OSError, socket.timeout):
             wfile.write(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
             wfile.flush()
+            proxy_stats.decr_active()
+            proxy_stats.incr_request(blocked=False)
+            proxy_stats.record_domain(host)
+            proxy_stats.record_status(502)
             proxy_logger.log({
                 "method": "CONNECT",
                 "host": host,
@@ -108,6 +121,10 @@ def tunnel_connect(
             sni = extract_sni(clienthello_bytes)
             if sni and blocklist.is_blocked(sni):
                 target_sock.close()
+                proxy_stats.decr_active()
+                proxy_stats.incr_request(blocked=True)
+                proxy_stats.record_domain(sni)
+                proxy_stats.record_status(403)
                 proxy_logger.log({
                     "method": "CONNECT",
                     "host": sni,
@@ -151,6 +168,10 @@ def tunnel_connect(
 
     finally:
         if outcome == "success":
+            proxy_stats.decr_active()
+            proxy_stats.incr_request(blocked=False)
+            proxy_stats.record_domain(host)
+            proxy_stats.record_status(200)
             proxy_logger.log({
                 "method": "CONNECT",
                 "host": host,
