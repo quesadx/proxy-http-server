@@ -92,11 +92,14 @@ Plans:
 
 **Plans**: 3 plans
 
-Plans:
+Plans: **Wave 1**
+- [x] 03-01: Thread-safe request logger to file
 
-- [ ] 03-01: Thread-safe request logger to file
-- [ ] 03-02: Flask monitoring dashboard on port 8081
-- [ ] 03-03: Real-time metrics from in-memory stats
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 03-03: Real-time metrics from in-memory stats
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 03-02: Flask monitoring dashboard on port 8081
 
 ### Phase 4: Caché HTTP
 
@@ -147,6 +150,6 @@ Plans:
 | 0. Bootstrap del entorno | 1/1 | Complete | 2026-06-08 |
 | 1. Núcleo del Proxy HTTP | 3/3 | Complete | 2026-06-08 |
 | 2. Módulo de Filtrado | 3/3 | Complete | 2026-06-08 |
-| 3. Logging y Panel de Monitoreo | 0/3 | Not started | - |
+| 3. Logging y Panel de Monitoreo | 3/3 | Complete | 2026-06-08 |
 | 4. Caché HTTP | 0/2 | Not started | - |
 | 5. Integración, Hardening y README | 0/4 | Not started | - |
