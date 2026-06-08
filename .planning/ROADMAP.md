@@ -10,7 +10,7 @@ Construir desde cero un servidor proxy HTTP funcional con filtrado de dominios (
 
 - [x] **Phase 0: Bootstrap del entorno** - Crear repositorio, flake.nix, .envrc, .gitignore, estructura de directorios
 - [ ] **Phase 1: Núcleo del Proxy HTTP** - Proxy funcional que intercepta, reenvía y maneja concurrencia (35%)
-- [ ] **Phase 2: Módulo de Filtrado** - Bloqueo de dominios en HTTP y HTTPS vía SNI (25%)
+- [x] **Phase 2: Módulo de Filtrado** - Bloqueo de dominios en HTTP y HTTPS vía SNI (25%)
 - [ ] **Phase 3: Logging y Panel de Monitoreo** - Registro auditable y panel web con métricas en tiempo real (20%)
 - [ ] **Phase 4: Caché HTTP** - Caché en memoria de respuestas HTTP para reducir latencia (10%)
 - [ ] **Phase 5: Integración, Hardening y README** - Integración final, robustez y documentación para demo (10%)
@@ -67,16 +67,16 @@ Plans:
   3. Bloqueo funciona sin reiniciar proxy al modificar blocklist
   4. Dominios no bloqueados pasan sin interferencia
 
-**Plans**: 3 plans
+**Plans**: 3 plans — COMPLETE
 Plans:
 **Wave 1**
 
-- [ ] 02-01: Domain blocklist loader with hot-reload
+- [x] 02-01: Domain blocklist loader with hot-reload
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02: HTTP domain and keyword filtering
-- [ ] 02-03: HTTPS SNI extraction and filtering
+- [x] 02-02: HTTP domain and keyword filtering
+- [x] 02-03: HTTPS SNI extraction and filtering
 
 ### Phase 3: Logging y Panel de Monitoreo
 
@@ -146,7 +146,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 0. Bootstrap del entorno | 1/1 | Complete | 2026-06-08 |
 | 1. Núcleo del Proxy HTTP | 3/3 | Complete | 2026-06-08 |
-| 2. Módulo de Filtrado | 0/3 | Not started | - |
+| 2. Módulo de Filtrado | 3/3 | Complete | 2026-06-08 |
 | 3. Logging y Panel de Monitoreo | 0/3 | Not started | - |
 | 4. Caché HTTP | 0/2 | Not started | - |
 | 5. Integración, Hardening y README | 0/4 | Not started | - |
