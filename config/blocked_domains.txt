@@ -1,0 +1,4 @@
+# Dominios bloqueados
+facebook.com
+twitter.com
+ads.google.com

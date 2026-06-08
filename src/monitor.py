@@ -1,0 +1,1 @@
+"""Flask monitoring dashboard"""
