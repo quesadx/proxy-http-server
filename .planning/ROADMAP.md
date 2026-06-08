@@ -117,8 +117,8 @@ Plans: **Wave 1**
 
 Plans:
 
-- [ ] 04-01: In-memory HTTP response cache with TTL
-- [ ] 04-02: Cache hit/miss tracking in logger and dashboard
+- [x] 04-01: In-memory HTTP response cache with TTL
+- [x] 04-02: Cache hit/miss tracking in logger and dashboard
 
 ### Phase 5: Integración, Hardening y README
 
@@ -151,5 +151,5 @@ Plans:
 | 1. Núcleo del Proxy HTTP | 3/3 | Complete | 2026-06-08 |
 | 2. Módulo de Filtrado | 3/3 | Complete | 2026-06-08 |
 | 3. Logging y Panel de Monitoreo | 3/3 | Complete | 2026-06-08 |
-| 4. Caché HTTP | 0/2 | Not started | - |
+| 4. Caché HTTP | 2/2 | Complete | 2026-06-08 |
 | 5. Integración, Hardening y README | 0/4 | Not started | - |
