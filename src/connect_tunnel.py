@@ -3,8 +3,10 @@
 import io
 import select
 import socket
+import time
 
 from src.config import CONNECT_TIMEOUT
+from src.logger import proxy_logger
 
 
 def tunnel_connect(
@@ -23,6 +25,9 @@ def tunnel_connect(
         wfile: Buffered writer to the client socket (for status responses).
         request_line: Raw CONNECT request line (e.g. ``CONNECT example.com:443 HTTP/1.1``).
     """
+    start_time = time.time()
+    outcome = None  # tracked for logging in finally
+
     # ------------------------------------------------------------------
     # 1. Parse target from request line
     # ------------------------------------------------------------------
@@ -53,6 +58,15 @@ def tunnel_connect(
         response = BLOCK_PAGE.format(domain=host)
         wfile.write(response.encode("utf-8"))
         wfile.flush()
+        proxy_logger.log({
+            "method": "CONNECT",
+            "host": host,
+            "path": f"{host}:{target_port}",
+            "status": 403,
+            "duration": round(time.time() - start_time, 3),
+            "blocked": True,
+            "reason": "connect_host_blocked",
+        })
         return
 
     target_sock = None
@@ -67,6 +81,15 @@ def tunnel_connect(
         except (socket.gaierror, ConnectionRefusedError, OSError, socket.timeout):
             wfile.write(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
             wfile.flush()
+            proxy_logger.log({
+                "method": "CONNECT",
+                "host": host,
+                "path": f"{host}:{target_port}",
+                "status": 502,
+                "duration": round(time.time() - start_time, 3),
+                "blocked": False,
+                "reason": "connection_failed",
+            })
             return
 
         # Send success response
@@ -84,10 +107,17 @@ def tunnel_connect(
         if clienthello_bytes:
             sni = extract_sni(clienthello_bytes)
             if sni and blocklist.is_blocked(sni):
-                # Silently close - client sees connection reset
                 target_sock.close()
+                proxy_logger.log({
+                    "method": "CONNECT",
+                    "host": sni,
+                    "path": f"{host}:{target_port}",
+                    "status": 403,
+                    "duration": round(time.time() - start_time, 3),
+                    "blocked": True,
+                    "reason": "sni_blocked",
+                })
                 return
-            # Forward ClientHello to target BEFORE relay loop
             target_sock.sendall(clienthello_bytes)
 
         # ------------------------------------------------------------------
@@ -97,7 +127,7 @@ def tunnel_connect(
         target_sock.setblocking(False)
 
         # ------------------------------------------------------------------
-        # 4. Bidirectional relay via select.select() (Pitfall 2: avoid deadlock)
+        # 4. Bidirectional relay via select.select()
         # ------------------------------------------------------------------
         sockets = [client_sock, target_sock]
         while True:
@@ -105,7 +135,6 @@ def tunnel_connect(
             if exceptional:
                 break
             if not readable:
-                # Timeout — both sides idle, keep polling
                 continue
 
             for sock in readable:
@@ -113,19 +142,25 @@ def tunnel_connect(
                 try:
                     data = sock.recv(4096)
                     if not data:
-                        # Connection closed by peer
+                        outcome = "success"
                         return
                     other.sendall(data)
                 except (ConnectionResetError, BrokenPipeError, OSError):
+                    outcome = "success"
                     return
 
     finally:
-        # ------------------------------------------------------------------
-        # 5. Cleanup (Pitfall 3: connection leaks)
-        # ------------------------------------------------------------------
+        if outcome == "success":
+            proxy_logger.log({
+                "method": "CONNECT",
+                "host": host,
+                "path": f"{host}:{target_port}",
+                "status": 200,
+                "duration": round(time.time() - start_time, 3),
+                "blocked": False,
+            })
         if target_sock is not None:
             try:
                 target_sock.close()
             except OSError:
                 pass
-        # NOTE: client_sock is NOT closed here — StreamRequestHandler manages it.
