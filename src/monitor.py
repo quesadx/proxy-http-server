@@ -51,6 +51,10 @@ def create_dashboard(stats=proxy_stats, host="localhost", port=8081):
 <table><tr><th>Status</th><th>Count</th></tr>
 {status_rows}
 </table>
+<h3>Cache</h3>
+<p class='stat'>Hits: <span class='value'>{snapshot['cache_hits']}</span></p>
+<p class='stat'>Misses: <span class='value'>{snapshot['cache_misses']}</span></p>
+<p class='stat'>Hit rate: <span class='value'>{snapshot['hit_rate']}%</span></p>
 <hr>
 <footer>Proxy Monitor — EIF208 UNA</footer>
 </body></html>"""
