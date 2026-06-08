@@ -1,5 +1,7 @@
 """HTTP proxy request handler — parses requests and dispatches to specialized handlers."""
 
+import logging
+import socket
 import socketserver
 import time
 
@@ -57,11 +59,16 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
                 self.handle_connect(request_line)
             else:
                 self.handle_http(request_line, dict(self.headers), body)
-        except Exception:
+        except (socket.timeout, ConnectionResetError, BrokenPipeError, OSError) as e:
             status = 502
+            logging.warning(f"Connection error handling request: {e}")
+        except Exception as e:
+            status = 502
+            logging.error(f"Unexpected error handling request: {e}", exc_info=True)
         finally:
             duration = time.time() - start_time
-            host = self.headers.get("host", "").split(":")[0]
+            headers = getattr(self, 'headers', {})
+            host = headers.get("host", "").split(":")[0]
             path = request_line.split(" ")[1] if " " in request_line else ""
             proxy_stats.decr_active()
             blocked = getattr(self, '_blocked', False)
@@ -131,6 +138,6 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
 
     def handle_connect(self, request_line):
         """Establish HTTPS CONNECT tunnel via lazy import from connect_tunnel."""
-        from connect_tunnel import tunnel_connect  # noqa: F401
+        from src.connect_tunnel import tunnel_connect
 
         tunnel_connect(self.request, self.wfile, request_line)
