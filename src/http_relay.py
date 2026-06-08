@@ -14,13 +14,15 @@ def forward_request(
     request_line: str,
     headers: dict,
     body: bytes,
-) -> None:
+) -> bytes | None:
     """Forward an HTTP proxy request (GET/POST) to the target server and relay the response.
 
     Parses the absolute-form URL from the request line (e.g.
     ``GET http://example.com/path HTTP/1.1``), connects to the target server,
     rewrites the request to origin-form (path-only), forwards it, and relays
     the response chunk-by-chunk back to the client.
+
+    Returns the raw response bytes if successful, or None on error.
 
     Args:
         client_sock: Client TCP socket (used for additional body reads if the
@@ -37,7 +39,7 @@ def forward_request(
     if len(parts) < 3:
         wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
         wfile.flush()
-        return
+        return None
 
     method, full_url, http_version = parts
     parsed = urllib.parse.urlparse(full_url)
@@ -46,7 +48,7 @@ def forward_request(
     if parsed.hostname is None:
         wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
         wfile.flush()
-        return
+        return None
 
     host = parsed.hostname
     port = parsed.port or 80
@@ -85,7 +87,7 @@ def forward_request(
             wfile.flush()
             proxy_stats.record_domain(host)
             proxy_stats.record_status(502)
-            return
+            return None
 
         # ------------------------------------------------------------------
         # 4. Reconstruct request in origin-form (path-only)
@@ -120,13 +122,15 @@ def forward_request(
         )
 
         # ------------------------------------------------------------------
-        # 6. Relay response chunk-by-chunk to client
+        # 6. Relay response chunk-by-chunk to client (buffer for caching)
         # ------------------------------------------------------------------
+        response_data = b""
         while True:
             try:
                 data = target_sock.recv(BUFFER_SIZE)
                 if not data:
                     break  # EOF — target closed connection
+                response_data += data
                 wfile.write(data)
                 wfile.flush()
             except (ConnectionResetError, BrokenPipeError, OSError):
@@ -134,6 +138,7 @@ def forward_request(
 
         proxy_stats.record_domain(host)
         proxy_stats.record_status(200)
+        return response_data
 
     finally:
         # ------------------------------------------------------------------

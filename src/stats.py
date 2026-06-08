@@ -15,6 +15,8 @@ class ProxyStats:
         self.active_connections = 0
         self.domain_counts: Counter = Counter()
         self.status_counts: Counter = Counter()
+        self.cache_hits = 0
+        self.cache_misses = 0
 
     def incr_request(self, blocked: bool = False) -> None:
         with self._lock:
@@ -32,6 +34,14 @@ class ProxyStats:
         with self._lock:
             self.status_counts[status] += 1
 
+    def incr_cache_hit(self) -> None:
+        with self._lock:
+            self.cache_hits += 1
+
+    def incr_cache_miss(self) -> None:
+        with self._lock:
+            self.cache_misses += 1
+
     def incr_active(self) -> None:
         with self._lock:
             self.active_connections += 1
@@ -42,6 +52,7 @@ class ProxyStats:
 
     def get_snapshot(self) -> dict:
         with self._lock:
+            total_cache = self.cache_hits + self.cache_misses
             return {
                 "total_requests": self.total_requests,
                 "blocked_requests": self.blocked_requests,
@@ -49,6 +60,11 @@ class ProxyStats:
                 "active_connections": self.active_connections,
                 "top_domains": self.domain_counts.most_common(5),
                 "status_codes": dict(self.status_counts.most_common()),
+                "cache_hits": self.cache_hits,
+                "cache_misses": self.cache_misses,
+                "hit_rate": round(
+                    self.cache_hits / total_cache * 100, 1
+                ) if total_cache > 0 else 0.0,
             }
 
 
