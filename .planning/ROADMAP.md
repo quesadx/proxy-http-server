@@ -43,9 +43,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TCP server with concurrent connection handling
-- [ ] 01-02: HTTP request parsing and forwarding
-- [ ] 01-03: HTTPS CONNECT tunnel support
+- [x] 01-01: TCP server with concurrent connection handling
+- [x] 01-02: HTTP request parsing and forwarding
+- [x] 01-03: HTTPS CONNECT tunnel support
 
 ### Phase 2: Módulo de Filtrado
 **Goal**: Bloqueo de dominios en HTTP (por Host header) y HTTPS (por SNI) con hot-reload de lista
@@ -118,7 +118,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Bootstrap del entorno | 1/1 | Complete | 2026-06-08 |
-| 1. Núcleo del Proxy HTTP | 0/3 | Not started | - |
+| 1. Núcleo del Proxy HTTP | 3/3 | Complete | 2026-06-08 |
 | 2. Módulo de Filtrado | 0/3 | Not started | - |
 | 3. Logging y Panel de Monitoreo | 0/3 | Not started | - |
 | 4. Caché HTTP | 0/2 | Not started | - |
