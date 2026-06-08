@@ -12,13 +12,20 @@ class ThreadedProxyServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 def main():
-    from src.config import PROXY_HOST, PROXY_PORT
+    from src.config import PROXY_HOST, PROXY_PORT, DASHBOARD_HOST, DASHBOARD_PORT
     from src.handler import ProxyRequestHandler
+    from src.monitor import start_dashboard
 
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(message)s",
     )
+
+    try:
+        start_dashboard(host=DASHBOARD_HOST, port=DASHBOARD_PORT)
+        logging.info(f"Dashboard available at http://{DASHBOARD_HOST}:{DASHBOARD_PORT}")
+    except ImportError:
+        logging.warning("Flask not available — dashboard disabled")
 
     try:
         with ThreadedProxyServer(
