@@ -46,6 +46,15 @@ def tunnel_connect(
         wfile.flush()
         return
 
+    # Phase 2: Check CONNECT host against blocklist before connecting
+    from src.filter import blocklist, BLOCK_PAGE, extract_sni
+
+    if blocklist.is_blocked(host):
+        response = BLOCK_PAGE.format(domain=host)
+        wfile.write(response.encode("utf-8"))
+        wfile.flush()
+        return
+
     target_sock = None
     try:
         # ------------------------------------------------------------------
@@ -63,6 +72,23 @@ def tunnel_connect(
         # Send success response
         wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         wfile.flush()
+
+        # Phase 2: Read ClientHello and check SNI
+        clienthello_bytes = None
+        try:
+            client_sock.settimeout(5.0)
+            clienthello_bytes = client_sock.recv(4096)
+        except (socket.timeout, OSError):
+            pass  # No ClientHello - allow through (CONNECT host already cleared)
+
+        if clienthello_bytes:
+            sni = extract_sni(clienthello_bytes)
+            if sni and blocklist.is_blocked(sni):
+                # Silently close - client sees connection reset
+                target_sock.close()
+                return
+            # Forward ClientHello to target BEFORE relay loop
+            target_sock.sendall(clienthello_bytes)
 
         # ------------------------------------------------------------------
         # 3. Configure sockets for non-blocking I/O
