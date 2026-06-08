@@ -5,6 +5,7 @@ import socket
 import urllib.parse
 
 from src.config import BUFFER_SIZE, CONNECT_TIMEOUT
+from src.stats import proxy_stats
 
 
 def forward_request(
@@ -82,6 +83,8 @@ def forward_request(
         except (socket.gaierror, ConnectionRefusedError, socket.timeout, OSError):
             wfile.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
             wfile.flush()
+            proxy_stats.record_domain(host)
+            proxy_stats.record_status(502)
             return
 
         # ------------------------------------------------------------------
@@ -128,6 +131,9 @@ def forward_request(
                 wfile.flush()
             except (ConnectionResetError, BrokenPipeError, OSError):
                 break
+
+        proxy_stats.record_domain(host)
+        proxy_stats.record_status(200)
 
     finally:
         # ------------------------------------------------------------------
