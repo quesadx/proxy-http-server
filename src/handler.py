@@ -1,8 +1,10 @@
 """HTTP proxy request handler — parses requests and dispatches to specialized handlers."""
 
 import socketserver
+import time
 
 from src.config import MAX_HEADER_SIZE
+from src.logger import proxy_logger
 
 
 class ProxyRequestHandler(socketserver.StreamRequestHandler):
@@ -15,36 +17,55 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
     MAX_HEADER_SIZE = MAX_HEADER_SIZE
 
     def handle(self):
-        request_line = self.rfile.readline()
-        if not request_line:
-            return
-        request_line = request_line.decode("utf-8", errors="replace").strip()
-        if not request_line:
-            return
+        start_time = time.time()
+        status = 200
+        method = "GET"
+        request_line = ""
+        try:
+            request_line = self.rfile.readline()
+            if not request_line:
+                return
+            request_line = request_line.decode("utf-8", errors="replace").strip()
+            if not request_line:
+                return
 
-        method = request_line.split(" ")[0].upper()
+            method = request_line.split(" ")[0].upper()
 
-        # Read headers
-        self.headers = {}
-        while True:
-            line = self.rfile.readline()
-            if line == b"\r\n" or not line:
-                break
-            decoded = line.decode("utf-8", errors="replace").strip()
-            if ":" in decoded:
-                key, value = decoded.split(":", 1)
-                self.headers[key.strip().lower()] = value.strip()
+            # Read headers
+            self.headers = {}
+            while True:
+                line = self.rfile.readline()
+                if line == b"\r\n" or not line:
+                    break
+                decoded = line.decode("utf-8", errors="replace").strip()
+                if ":" in decoded:
+                    key, value = decoded.split(":", 1)
+                    self.headers[key.strip().lower()] = value.strip()
 
-        # Read body if present (non-CONNECT only)
-        body = b""
-        content_length = int(self.headers.get("content-length", "0"))
-        if content_length > 0:
-            body = self.rfile.read(content_length)
+            # Read body if present (non-CONNECT only)
+            body = b""
+            content_length = int(self.headers.get("content-length", "0"))
+            if content_length > 0:
+                body = self.rfile.read(content_length)
 
-        if method == "CONNECT":
-            self.handle_connect(request_line)
-        else:
-            self.handle_http(request_line, dict(self.headers), body)
+            if method == "CONNECT":
+                self.handle_connect(request_line)
+            else:
+                self.handle_http(request_line, dict(self.headers), body)
+        except Exception:
+            status = 502
+        finally:
+            duration = time.time() - start_time
+            host = self.headers.get("host", "").split(":")[0]
+            path = request_line.split(" ")[1] if " " in request_line else ""
+            proxy_logger.log({
+                "method": method,
+                "host": host,
+                "path": path,
+                "status": status,
+                "duration": round(duration, 3),
+                "blocked": False,
+            })
 
     def handle_http(self, request_line, headers, body):
         """Forward HTTP GET/POST requests with domain filtering."""
