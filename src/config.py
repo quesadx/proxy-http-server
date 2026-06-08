@@ -7,3 +7,5 @@ CONNECT_TIMEOUT = 30  # seconds
 MAX_HEADER_SIZE = 65536  # max header bytes to prevent memory DoS
 LOG_FILE = "logs/proxy.log"
 LOG_FORMAT = "jsonl"
+DASHBOARD_HOST = "localhost"
+DASHBOARD_PORT = 8081
