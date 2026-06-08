@@ -5,6 +5,7 @@ import time
 
 from src.config import MAX_HEADER_SIZE
 from src.logger import proxy_logger
+from src.stats import proxy_stats
 
 
 class ProxyRequestHandler(socketserver.StreamRequestHandler):
@@ -21,6 +22,8 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
         status = 200
         method = "GET"
         request_line = ""
+        self._blocked = False
+        proxy_stats.incr_active()
         try:
             request_line = self.rfile.readline()
             if not request_line:
@@ -58,13 +61,18 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
             duration = time.time() - start_time
             host = self.headers.get("host", "").split(":")[0]
             path = request_line.split(" ")[1] if " " in request_line else ""
+            proxy_stats.decr_active()
+            blocked = getattr(self, '_blocked', False)
+            proxy_stats.incr_request(blocked=blocked)
+            proxy_stats.record_domain(host or "unknown")
+            proxy_stats.record_status(status)
             proxy_logger.log({
                 "method": method,
                 "host": host,
                 "path": path,
                 "status": status,
                 "duration": round(duration, 3),
-                "blocked": False,
+                "blocked": blocked,
             })
 
     def handle_http(self, request_line, headers, body):
@@ -73,6 +81,7 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
 
         host = headers.get("host", "").split(":")[0]
         if host and blocklist.is_blocked(host):
+            self._blocked = True
             response = BLOCK_PAGE.format(domain=host)
             self.wfile.write(response.encode("utf-8"))
             self.wfile.flush()
