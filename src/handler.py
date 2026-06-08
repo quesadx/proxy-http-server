@@ -47,7 +47,16 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
             self.handle_http(request_line, dict(self.headers), body)
 
     def handle_http(self, request_line, headers, body):
-        """Forward HTTP GET/POST requests via lazy import from http_relay."""
+        """Forward HTTP GET/POST requests with domain filtering."""
+        from src.filter import blocklist, BLOCK_PAGE
+
+        host = headers.get("host", "").split(":")[0]
+        if host and blocklist.is_blocked(host):
+            response = BLOCK_PAGE.format(domain=host)
+            self.wfile.write(response.encode("utf-8"))
+            self.wfile.flush()
+            return
+
         from http_relay import forward_request  # noqa: F401
 
         forward_request(self.request, self.wfile, request_line, headers, body)
