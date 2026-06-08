@@ -1,0 +1,55 @@
+"""Thread-safe in-memory metrics aggregation for proxy monitoring."""
+
+import threading
+from collections import Counter
+
+
+class ProxyStats:
+    """Thread-safe in-memory metrics aggregation."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.total_requests = 0
+        self.blocked_requests = 0
+        self.allowed_requests = 0
+        self.active_connections = 0
+        self.domain_counts: Counter = Counter()
+        self.status_counts: Counter = Counter()
+
+    def incr_request(self, blocked: bool = False) -> None:
+        with self._lock:
+            self.total_requests += 1
+            if blocked:
+                self.blocked_requests += 1
+            else:
+                self.allowed_requests += 1
+
+    def record_domain(self, domain: str) -> None:
+        with self._lock:
+            self.domain_counts[domain] += 1
+
+    def record_status(self, status: int) -> None:
+        with self._lock:
+            self.status_counts[status] += 1
+
+    def incr_active(self) -> None:
+        with self._lock:
+            self.active_connections += 1
+
+    def decr_active(self) -> None:
+        with self._lock:
+            self.active_connections -= 1
+
+    def get_snapshot(self) -> dict:
+        with self._lock:
+            return {
+                "total_requests": self.total_requests,
+                "blocked_requests": self.blocked_requests,
+                "allowed_requests": self.allowed_requests,
+                "active_connections": self.active_connections,
+                "top_domains": self.domain_counts.most_common(5),
+                "status_codes": dict(self.status_counts.most_common()),
+            }
+
+
+proxy_stats = ProxyStats()
