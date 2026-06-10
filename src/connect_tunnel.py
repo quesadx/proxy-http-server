@@ -66,9 +66,10 @@ def tunnel_connect(
         proxy_stats.decr_active()
         return
 
-    # Phase 2: Check CONNECT host against blocklist before connecting
+    # Phase 2: Check CONNECT host against blocklist + keywords before connecting
     from src.filter import blocklist, BLOCK_PAGE, extract_sni
 
+    full_url = f"{host}:{target_port}"
     if blocklist.is_blocked(host):
         response = BLOCK_PAGE.format(domain=host)
         try:
@@ -83,11 +84,33 @@ def tunnel_connect(
         proxy_logger.log({
             "method": "CONNECT",
             "host": host,
-            "path": f"{host}:{target_port}",
+            "path": full_url,
             "status": 403,
             "duration": round(time.time() - start_time, 3),
             "blocked": True,
             "reason": "connect_host_blocked",
+        })
+        return
+
+    if blocklist.has_blocked_keyword(full_url):
+        response = BLOCK_PAGE.format(domain=full_url)
+        try:
+            wfile.write(response.encode("utf-8"))
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        proxy_stats.decr_active()
+        proxy_stats.incr_request(blocked=True)
+        proxy_stats.record_domain(host)
+        proxy_stats.record_status(403)
+        proxy_logger.log({
+            "method": "CONNECT",
+            "host": host,
+            "path": full_url,
+            "status": 403,
+            "duration": round(time.time() - start_time, 3),
+            "blocked": True,
+            "reason": "keyword_blocked",
         })
         return
 
@@ -189,6 +212,8 @@ def tunnel_connect(
                         outcome = "success"
                         return
                     other.sendall(data)
+                    if sock is target_sock:
+                        proxy_stats.add_transfer_bytes(len(data))
                 except (ConnectionResetError, BrokenPipeError, OSError):
                     outcome = "success"
                     return

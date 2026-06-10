@@ -147,6 +147,7 @@ def forward_request(
 
         proxy_stats.record_domain(host)
         proxy_stats.record_status(200)
+        proxy_stats.add_transfer_bytes(len(response_data))
         return response_data
 
     finally:

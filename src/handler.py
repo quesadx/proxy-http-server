@@ -28,6 +28,8 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
         self._blocked = False
         self._cached = False
         proxy_stats.incr_active()
+        client_ip = self.client_address[0]
+        proxy_stats.incr_client(client_ip)
         try:
             request_line = self.rfile.readline()
             if not request_line:
@@ -70,12 +72,14 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
             headers = getattr(self, 'headers', {})
             host = headers.get("host", "").split(":")[0]
             path = request_line.split(" ")[1] if " " in request_line else ""
+            response_size = getattr(self, '_response_size', 0)
             proxy_stats.decr_active()
             blocked = getattr(self, '_blocked', False)
             proxy_stats.incr_request(blocked=blocked)
             proxy_stats.record_domain(host or "unknown")
             proxy_stats.record_status(status)
             proxy_logger.log({
+                "client_ip": client_ip,
                 "method": method,
                 "host": host,
                 "path": path,
@@ -83,18 +87,32 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
                 "duration": round(duration, 3),
                 "blocked": blocked,
                 "cache_hit": getattr(self, '_cached', False),
+                "response_size": response_size,
             })
 
     def handle_http(self, request_line, headers, body):
-        """Forward HTTP GET/POST requests with domain filtering and caching."""
+        """Forward HTTP GET/POST requests with domain and keyword filtering and caching."""
         from src.filter import blocklist, BLOCK_PAGE
 
         host = headers.get("host", "").split(":")[0]
+        full_url = request_line.split(" ")[1] if " " in request_line else ""
+
         if host and blocklist.is_blocked(host):
             self._blocked = True
             response = BLOCK_PAGE.format(domain=host)
             self.wfile.write(response.encode("utf-8"))
             self.wfile.flush()
+            self._response_size = len(response)
+            proxy_stats.add_transfer_bytes(self._response_size)
+            return
+
+        if full_url and blocklist.has_blocked_keyword(full_url):
+            self._blocked = True
+            response = BLOCK_PAGE.format(domain="keyword bloqueado")
+            self.wfile.write(response.encode("utf-8"))
+            self.wfile.flush()
+            self._response_size = len(response)
+            proxy_stats.add_transfer_bytes(self._response_size)
             return
 
         method = request_line.split(" ")[0].upper()
@@ -105,14 +123,17 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
         if cached is not None:
             proxy_stats.incr_cache_hit()
             self._cached = True
-            self.wfile.write(
+            response_bytes = (
                 cached.status_line.encode("utf-8")
                 + b"\r\n"
                 + cached.headers.encode("utf-8")
                 + b"\r\n\r\n"
                 + cached.body
             )
+            self.wfile.write(response_bytes)
             self.wfile.flush()
+            self._response_size = len(response_bytes)
+            proxy_stats.add_transfer_bytes(self._response_size)
             return
 
         proxy_stats.incr_cache_miss()
@@ -121,20 +142,22 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
 
         response_data = forward_request(self.request, self.wfile, request_line, headers, body)
 
-        if response_data is not None and method == "GET":
-            crlf = response_data.find(b"\r\n\r\n")
-            if crlf != -1:
-                status_line = response_data[:response_data.index(b"\r\n")].decode("utf-8", errors="replace")
-                if "200" in status_line:
-                    header_bytes = response_data[:crlf]
-                    body_bytes = response_data[crlf + 4:]
-                    header_str = header_bytes.decode("utf-8", errors="replace")
-                    entry = CacheEntry(
-                        status_line=status_line,
-                        headers=header_str,
-                        body=body_bytes,
-                    )
-                    proxy_cache.set(cache_key, entry)
+        if response_data is not None:
+            self._response_size = len(response_data)
+            if method == "GET":
+                crlf = response_data.find(b"\r\n\r\n")
+                if crlf != -1:
+                    status_line = response_data[:response_data.index(b"\r\n")].decode("utf-8", errors="replace")
+                    if "200" in status_line:
+                        header_bytes = response_data[:crlf]
+                        body_bytes = response_data[crlf + 4:]
+                        header_str = header_bytes.decode("utf-8", errors="replace")
+                        entry = CacheEntry(
+                            status_line=status_line,
+                            headers=header_str,
+                            body=body_bytes,
+                        )
+                        proxy_cache.set(cache_key, entry)
 
     def handle_connect(self, request_line):
         """Establish HTTPS CONNECT tunnel via lazy import from connect_tunnel."""
