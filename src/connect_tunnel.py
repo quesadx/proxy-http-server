@@ -1,6 +1,7 @@
 """HTTPS CONNECT tunnel — establishes TCP tunnel and performs bidirectional byte relay using select()."""
 
 import io
+import logging
 import select
 import socket
 import time
@@ -35,15 +36,21 @@ def tunnel_connect(
     # ------------------------------------------------------------------
     parts = request_line.split()
     if len(parts) < 2:
-        wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
-        wfile.flush()
+        try:
+            wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
         proxy_stats.decr_active()
         return
 
     target = parts[1]
     if ":" not in target:
-        wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
-        wfile.flush()
+        try:
+            wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
         proxy_stats.decr_active()
         return
 
@@ -51,8 +58,11 @@ def tunnel_connect(
     try:
         target_port = int(port_str)
     except ValueError:
-        wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
-        wfile.flush()
+        try:
+            wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
         proxy_stats.decr_active()
         return
 
@@ -61,8 +71,11 @@ def tunnel_connect(
 
     if blocklist.is_blocked(host):
         response = BLOCK_PAGE.format(domain=host)
-        wfile.write(response.encode("utf-8"))
-        wfile.flush()
+        try:
+            wfile.write(response.encode("utf-8"))
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
         proxy_stats.decr_active()
         proxy_stats.incr_request(blocked=True)
         proxy_stats.record_domain(host)
@@ -88,8 +101,11 @@ def tunnel_connect(
         try:
             target_sock.connect((host, target_port))
         except (socket.gaierror, ConnectionRefusedError, OSError, socket.timeout):
-            wfile.write(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
-            wfile.flush()
+            try:
+                wfile.write(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
+                wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
             proxy_stats.decr_active()
             proxy_stats.incr_request(blocked=False)
             proxy_stats.record_domain(host)
@@ -106,8 +122,12 @@ def tunnel_connect(
             return
 
         # Send success response
-        wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-        wfile.flush()
+        try:
+            wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            proxy_stats.decr_active()
+            return
 
         # Phase 2: Read ClientHello and check SNI
         clienthello_bytes = None
@@ -147,14 +167,21 @@ def tunnel_connect(
         # 4. Bidirectional relay via select.select()
         # ------------------------------------------------------------------
         sockets = [client_sock, target_sock]
+        MAX_IDLE_TIMEOUTS = 10
+        idle_timeouts = 0
         while True:
             readable, _, exceptional = select.select(sockets, [], sockets, 30.0)
             if exceptional:
                 break
             if not readable:
+                idle_timeouts += 1
+                if idle_timeouts >= MAX_IDLE_TIMEOUTS:
+                    logging.info(f"CONNECT tunnel to {host}:{target_port} closed after idle timeout")
+                    break
                 continue
 
             for sock in readable:
+                idle_timeouts = 0
                 other = target_sock if sock is client_sock else client_sock
                 try:
                     data = sock.recv(4096)

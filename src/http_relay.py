@@ -37,8 +37,11 @@ def forward_request(
     # ------------------------------------------------------------------
     parts = request_line.split()
     if len(parts) < 3:
-        wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
-        wfile.flush()
+        try:
+            wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
         return None
 
     method, full_url, http_version = parts
@@ -46,8 +49,11 @@ def forward_request(
 
     # Pitfall 5: absolute-form vs origin-form — validate hostname exists
     if parsed.hostname is None:
-        wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
-        wfile.flush()
+        try:
+            wfile.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+            wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
         return None
 
     host = parsed.hostname
@@ -83,8 +89,11 @@ def forward_request(
         try:
             target_sock.connect((host, port))
         except (socket.gaierror, ConnectionRefusedError, socket.timeout, OSError):
-            wfile.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
-            wfile.flush()
+            try:
+                wfile.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
+                wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
             proxy_stats.record_domain(host)
             proxy_stats.record_status(502)
             return None
