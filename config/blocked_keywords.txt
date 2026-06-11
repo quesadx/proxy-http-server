@@ -1,0 +1,7 @@
+# Palabras clave bloqueadas en URLs
+spam
+malware
+track
+analytics
+adservice
+doubleclick
