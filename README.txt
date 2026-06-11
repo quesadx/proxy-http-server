@@ -128,6 +128,10 @@ Chrome:
 
   Endpoint JSON: http://localhost:8081/api/stats
 
+  Endpoint CSV: http://localhost:8081/api/report
+  Descarga un reporte CSV con metricas, dominios principales,
+  clientes activos, y codigos de estado.
+
 6.7 Cache HTTP
 
   Primera visita (se reenvia al servidor destino):
@@ -146,7 +150,16 @@ Chrome:
   status, duracion, bloqueado, cache_hit.
 
   Formato CSV (si se usa --log-format csv):
-  cat logs/proxy.log
+
+  timestamp,method,host,path,status,duration,blocked,cache_hit
+
+  La primera linea es el encabezado con los nombres de las
+  columnas. Cada linea representa una solicitud. Usar:
+
+    column -t -s',' logs/proxy.log
+
+  para visualizar en terminal, o abrir directamente en hoja
+  de calculo.
 
 6.9 Flags personalizados
 
