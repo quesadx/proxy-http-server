@@ -21,7 +21,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--host", type=str, default=None,
-        help="Proxy listen host (default: localhost)",
+        help="Proxy listen host (default: 0.0.0.0)",
     )
     parser.add_argument(
         "--port", type=int, default=None,
@@ -29,7 +29,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--dashboard-host", type=str, default=None,
-        help="Dashboard listen host (default: localhost)",
+        help="Dashboard listen host (default: 0.0.0.0)",
     )
     parser.add_argument(
         "--dashboard-port", type=int, default=None,
