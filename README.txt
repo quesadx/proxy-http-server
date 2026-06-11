@@ -22,16 +22,16 @@ carrera de Ingenieria en Sistemas, Universidad Nacional.
   direnv allow
   python src/proxy.py
 
-El proxy inicia en http://localhost:8080
-El dashboard de monitoreo inicia en http://localhost:8081
+El proxy inicia en http://0.0.0.0:8080 (accesible desde otros dispositivos)
+El dashboard de monitoreo inicia en http://0.0.0.0:8081
 
 ====================================
 3. OPCIONES DE LINEA DE COMANDOS
 ====================================
 
-  --host HOST              Proxy listen host (default: localhost)
+  --host HOST              Proxy listen host (default: 0.0.0.0)
   --port PORT              Proxy listen port (default: 8080)
-  --dashboard-host HOST    Dashboard listen host (default: localhost)
+  --dashboard-host HOST    Dashboard listen host (default: 0.0.0.0)
   --dashboard-port PORT    Dashboard listen port (default: 8081)
   --blocklist PATH         Ruta al archivo de dominios bloqueados
                            (default: config/blocked_domains.txt)
