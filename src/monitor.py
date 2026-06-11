@@ -100,29 +100,62 @@ Proxy Monitor — <a href='/api/stats'>API JSON</a> | <a href='/api/report'>Expo
 
     @app.route("/api/report")
     def api_report():
+        import datetime
+
         snapshot = stats.get_snapshot()
+        total_cache = snapshot["cache_hits"] + snapshot["cache_misses"]
+        miss_rate = round(snapshot["cache_misses"] / total_cache * 100, 1) if total_cache > 0 else 0.0
         data_mb = round(snapshot["bytes_transferred"] / (1024 * 1024), 2)
+
+        status_desc = {
+            200: "OK", 301: "Moved Permanently", 302: "Found",
+            304: "Not Modified", 400: "Bad Request", 401: "Unauthorized",
+            403: "Forbidden (Bloqueado)", 404: "Not Found", 500: "Server Error",
+            502: "Bad Gateway", 503: "Service Unavailable",
+        }
+
+        today = datetime.date.today().isoformat()
         lines = [
-            "metric,value",
-            f"total_requests,{snapshot['total_requests']}",
-            f"allowed,{snapshot['allowed_requests']}",
-            f"blocked,{snapshot['blocked_requests']}",
-            f"blocked_pct,{snapshot['blocked_pct']}",
-            f"allowed_pct,{snapshot['allowed_pct']}",
-            f"bytes_transferred,{snapshot['bytes_transferred']}",
-            f"data_volume_mb,{data_mb}",
-            f"active_connections,{snapshot['active_connections']}",
-            f"active_clients,{snapshot['active_clients']}",
-            f"cache_hits,{snapshot['cache_hits']}",
-            f"cache_misses,{snapshot['cache_misses']}",
-            f"hit_rate,{snapshot['hit_rate']}",
+            f"=== REPORTE ESTADÍSTICO DEL PROXY (EIF208) ===",
+            f"Reporte generado,{today}",
+            "",
+            f"--- MÉTRICAS GLOBALES DE TRÁFICO ---",
+            f"Métrica,Valor,Porcentaje",
+            f"Total de Peticiones,{snapshot['total_requests']},100%",
+            f"Peticiones Permitidas,{snapshot['allowed_requests']},{snapshot['allowed_pct']}%",
+            f"Peticiones Bloqueadas,{snapshot['blocked_requests']},{snapshot['blocked_pct']}%",
+            f"Volumen de Datos Transferidos,{data_mb} MB,—",
+            f"Conexiones Activas en el Corte,{snapshot['active_connections']},—",
+            f"Clientes Únicos Activos,{snapshot['active_clients']},—",
+            "",
+            f"--- RENDIMIENTO DE LA MEMORIA CACHÉ ---",
+            f"Estado,Cantidad,Porcentaje de Éxito",
+            f"Cache Hits (Éxitos),{snapshot['cache_hits']},{snapshot['hit_rate']}%",
+            f"Cache Misses (Fallos),{snapshot['cache_misses']},{miss_rate}%",
+            "",
+            f"--- CÓDIGOS DE ESTADO HTTP DETECTADOS ---",
+            f"Código HTTP,Descripción,Conteo de Peticiones",
         ]
         for code, count in snapshot["status_codes"].items():
-            lines.append(f"status_code:{code},{count}")
-        for dom, count in snapshot["top_domains"]:
-            lines.append(f"top_domain:{dom},{count}")
+            desc = status_desc.get(code, "Desconocido")
+            lines.append(f"{code},{desc},{count}")
+
+        lines += [
+            "",
+            f"--- TOP 5 DOMINIOS MÁS SOLICITADOS ---",
+            f"Posición,Dominio de Red,Total Peticiones",
+        ]
+        for i, (dom, count) in enumerate(snapshot["top_domains"], start=1):
+            lines.append(f"{i},{dom},{count}")
+
+        lines += [
+            "",
+            f"--- DIRECCIONES IP DE ORIGEN (CLIENTES) ---",
+            f"Dirección IP,Peticiones Totales",
+        ]
         for ip, count in snapshot["clients"].items():
-            lines.append(f"client:{ip},{count}")
+            lines.append(f"{ip},{count}")
+
         csv = "\n".join(lines) + "\n"
         return Response(csv, mimetype="text/csv",
                         headers={"Content-Disposition": "attachment; filename=proxy-report.csv"})
