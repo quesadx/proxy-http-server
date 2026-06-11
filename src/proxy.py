@@ -92,13 +92,11 @@ def main():
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
-    # Reconfigure blocklist if path changed via CLI
     if args.blocklist is not None:
         from src.filter import blocklist
         blocklist._filepath = Path(args.blocklist)
         blocklist._load()
 
-    # Reconfigure logger if path or format changed via CLI
     if args.log_file is not None or args.log_format is not None:
         from src.logger import proxy_logger
         proxy_logger.reconfigure(
