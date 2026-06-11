@@ -71,7 +71,7 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
             duration = time.time() - start_time
             headers = getattr(self, 'headers', {})
             host = headers.get("host", "").split(":")[0]
-            path = request_line.split(" ")[1] if " " in request_line else ""
+            path = request_line.split(b" ")[1] if b" " in request_line else ""
             response_size = getattr(self, '_response_size', 0)
             proxy_stats.decr_active()
             blocked = getattr(self, '_blocked', False)
@@ -95,7 +95,7 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
         from src.filter import blocklist, BLOCK_PAGE
 
         host = headers.get("host", "").split(":")[0]
-        full_url = request_line.split(" ")[1] if " " in request_line else ""
+        full_url = request_line.split(b" ")[1] if b" " in request_line else ""
 
         if host and blocklist.is_blocked(host):
             self._blocked = True
@@ -116,7 +116,7 @@ class ProxyRequestHandler(socketserver.StreamRequestHandler):
             return
 
         method = request_line.split(" ")[0].upper()
-        path = request_line.split(" ")[1] if " " in request_line else "/"
+        path = request_line.split(b" ")[1] if b" " in request_line else "/"
         cache_key = f"{host}:{path}"
 
         cached = proxy_cache.get(cache_key)
