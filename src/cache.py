@@ -18,11 +18,7 @@ class CacheEntry:
 
 
 class ProxyCache:
-    """In-memory HTTP response cache with TTL expiry and FIFO eviction.
-
-    Thread-safe via threading.Lock. Only cacheable responses
-    (GET 200) should be stored.
-    """
+    """In-memory HTTP response cache with TTL expiry and FIFO eviction."""
 
     def __init__(self, ttl: int = 60, max_size: int = 100):
         self._ttl = ttl

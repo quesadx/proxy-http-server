@@ -169,5 +169,4 @@ def extract_sni(data: bytes) -> str | None:
     return None
 
 
-# Module-level singleton for import by handler.py and connect_tunnel.py
 blocklist = Blocklist()

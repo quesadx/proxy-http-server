@@ -21,19 +21,11 @@ def tunnel_connect(
     Parses the ``CONNECT host:port HTTP/1.1`` request line, connects to the
     target server, responds with ``200 Connection Established``, then relays
     bytes bidirectionally using ``select.select()`` until one side closes.
-
-    Args:
-        client_sock: Client TCP socket (used for relay, NOT closed here).
-        wfile: Buffered writer to the client socket (for status responses).
-        request_line: Raw CONNECT request line (e.g. ``CONNECT example.com:443 HTTP/1.1``).
     """
     start_time = time.time()
-    outcome = None  # tracked for logging in finally
+    outcome = None
     proxy_stats.incr_active()
 
-    # ------------------------------------------------------------------
-    # 1. Parse target from request line
-    # ------------------------------------------------------------------
     parts = request_line.split()
     if len(parts) < 2:
         try:
@@ -66,7 +58,6 @@ def tunnel_connect(
         proxy_stats.decr_active()
         return
 
-    # Phase 2: Check CONNECT host against blocklist + keywords before connecting
     from src.filter import blocklist, BLOCK_PAGE, extract_sni
 
     full_url = f"{host}:{target_port}"
@@ -116,9 +107,6 @@ def tunnel_connect(
 
     target_sock = None
     try:
-        # ------------------------------------------------------------------
-        # 2. Connect to target server
-        # ------------------------------------------------------------------
         target_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         target_sock.settimeout(CONNECT_TIMEOUT)
         try:
@@ -144,7 +132,6 @@ def tunnel_connect(
             })
             return
 
-        # Send success response
         try:
             wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
             wfile.flush()
@@ -152,13 +139,13 @@ def tunnel_connect(
             proxy_stats.decr_active()
             return
 
-        # Phase 2: Read ClientHello and check SNI
+        # Read ClientHello and check SNI
         clienthello_bytes = None
         try:
             client_sock.settimeout(5.0)
             clienthello_bytes = client_sock.recv(4096)
         except (socket.timeout, OSError):
-            pass  # No ClientHello - allow through (CONNECT host already cleared)
+            pass
 
         if clienthello_bytes:
             sni = extract_sni(clienthello_bytes)
@@ -180,15 +167,9 @@ def tunnel_connect(
                 return
             target_sock.sendall(clienthello_bytes)
 
-        # ------------------------------------------------------------------
-        # 3. Configure sockets for non-blocking I/O
-        # ------------------------------------------------------------------
         client_sock.setblocking(False)
         target_sock.setblocking(False)
 
-        # ------------------------------------------------------------------
-        # 4. Bidirectional relay via select.select()
-        # ------------------------------------------------------------------
         sockets = [client_sock, target_sock]
         MAX_IDLE_TIMEOUTS = 10
         idle_timeouts = 0
