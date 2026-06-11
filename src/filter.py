@@ -33,7 +33,7 @@ class Blocklist:
     POLL_INTERVAL = 2  # seconds
 
     def __init__(self, filepath: str = "config/blocked_domains.txt",
-                 keyword_filepath: str = "config/blocked_keywords.txt"):
+                keyword_filepath: str = "config/blocked_keywords.txt"):
         self._filepath = Path(filepath)
         self._keyword_filepath = Path(keyword_filepath)
         self._lock = threading.Lock()
